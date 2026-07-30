@@ -94,7 +94,7 @@ function Landing() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" className="rounded-full px-7 shadow-glow">
-                <Link to="/app">
+                <Link to="/login">
                   Start Journaling
                   <ArrowRight className="size-4" aria-hidden />
                 </Link>
@@ -156,7 +156,7 @@ function Landing() {
             Write something today. Only you will ever read it.
           </h2>
           <Button asChild size="lg" className="mt-7 rounded-full px-8 shadow-glow">
-            <Link to="/app">Start Journaling</Link>
+            <Link to="/login">Start Journaling</Link>
           </Button>
         </section>
       </main>
