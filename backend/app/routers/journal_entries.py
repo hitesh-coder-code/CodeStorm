@@ -1,23 +1,3 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    Response,
-    status,
-)
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from app.core.database import get_db
-from app.dependencies.auth import get_current_user
-from app.models.journal_entry import JournalEntry
-from app.models.user import User
-from app.schemas.journal_entry import (
-    JournalCreate,
-    JournalResponse,
-    JournalUpdate,
-)
-
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Literal
 
@@ -43,6 +23,8 @@ from app.schemas.journal_entry import (
     JournalUpdate,
     MoodLabel,
 )
+
+
 router = APIRouter(
     prefix="/api/v1/journals",
     tags=["Journals"],
@@ -66,37 +48,36 @@ def get_owned_journal(
     "",
     response_model=JournalResponse,
     status_code=status.HTTP_201_CREATED,
+    summary="Create journal entry",
 )
 def create_journal(
     journal_data: JournalCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JournalEntry:
-    journal_values = journal_data.model_dump(mode="json")
+    values = journal_data.model_dump(mode="json")
 
-    new_journal = JournalEntry(
-        **journal_values,
+    journal = JournalEntry(
+        **values,
         user_id=current_user.id,
     )
 
-    db.add(new_journal)
+    db.add(journal)
     db.commit()
-    db.refresh(new_journal)
+    db.refresh(journal)
 
-    return new_journal
+    return journal
 
 
 @router.get(
     "",
-    response_model=list[JournalResponse],
+    response_model=JournalListResponse,
+    summary="List current user's journals",
 )
 def list_journals(
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=10, ge=1, le=100),
-    search: str | None = Query(
-        default=None,
-        max_length=200,
-    ),
+    page_size: int = Query(default=100, ge=1, le=100),
+    search: str | None = Query(default=None, max_length=200),
     mood_label: MoodLabel | None = None,
     is_favorite: bool | None = None,
     start_date: date | None = None,
@@ -105,22 +86,30 @@ def list_journals(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JournalListResponse:
+    if (
+        start_date is not None
+        and end_date is not None
+        and end_date < start_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="End date cannot be earlier than start date.",
+        )
+
     filters = [
-        JournalEntry.user_id == current_user.id
+        JournalEntry.user_id == current_user.id,
     ]
 
     if search:
         cleaned_search = search.strip()
 
         if cleaned_search:
-            search_pattern = f"%{cleaned_search}%"
+            pattern = f"%{cleaned_search}%"
 
             filters.append(
                 or_(
-                    JournalEntry.title.ilike(search_pattern),
-                    JournalEntry.original_text.ilike(
-                        search_pattern
-                    ),
+                    JournalEntry.title.ilike(pattern),
+                    JournalEntry.original_text.ilike(pattern),
                 )
             )
 
@@ -157,21 +146,21 @@ def list_journals(
         )
 
     total_statement = (
-        select(func.count())
-        .select_from(JournalEntry)
+        select(func.count(JournalEntry.id))
         .where(*filters)
     )
 
     total = db.scalar(total_statement) or 0
 
-    if sort == "oldest":
-        order_column = JournalEntry.created_at.asc()
-    else:
-        order_column = JournalEntry.created_at.desc()
+    order_column = (
+        JournalEntry.created_at.asc()
+        if sort == "oldest"
+        else JournalEntry.created_at.desc()
+    )
 
     offset = (page - 1) * page_size
 
-    journals_statement = (
+    statement = (
         select(JournalEntry)
         .where(*filters)
         .order_by(order_column)
@@ -179,16 +168,15 @@ def list_journals(
         .limit(page_size)
     )
 
-    journals = list(
-        db.scalars(journals_statement).all()
-    )
+    items = list(db.scalars(statement).all())
 
     return JournalListResponse(
         page=page,
         page_size=page_size,
         total=total,
-        items=journals,
+        items=items,
     )
+
 
 @router.get(
     "/{entry_id}",

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import logo from "@/assets/mindvault-logo.png";
 import { toast } from "sonner";
-
+import { generateAIReflection } from "@/lib/api";
 export const Route = createFileRoute("/app/reflections")({
   head: () => ({
     meta: [
@@ -35,17 +35,43 @@ function Reflections() {
   }, [messages.length, typing]);
 
   const send = (text: string) => {
-    const content = text.trim();
-    if (!content) return;
-    push("user", content);
-    setDraft("");
-    setTyping(true);
-    setTimeout(() => {
-      const recentMood = entries[0]?.mood ?? "okay";
-      push("assistant", reflect(content, recentMood));
-      setTyping(false);
-    }, 1100);
-  };
+  const content = text.trim();
+
+  if (!content) {
+    return;
+  }
+
+  push("user", content);
+  setDraft("");
+  setTyping(true);
+
+  setTimeout(async () => {
+    const recentMood =
+      entries[0]?.mood ?? "okay";
+
+    let responseText =
+      reflect(content, recentMood);
+
+    try {
+      const aiResponse =
+        await generateAIReflection(
+          content,
+          recentMood,
+        );
+
+      responseText =
+        aiResponse.reflection;
+    } catch (error) {
+      console.error(
+        "Gemma response failed:",
+        error,
+      );
+    }
+
+    push("assistant", responseText);
+    setTyping(false);
+  }, 1100);
+};
 
   return (
     <div className="mx-auto flex h-[calc(100vh-11rem)] max-w-3xl flex-col lg:h-[calc(100vh-9rem)]">

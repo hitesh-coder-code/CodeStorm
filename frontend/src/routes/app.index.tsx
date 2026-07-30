@@ -9,6 +9,7 @@ import {
   weeklyMoodSeries,
   type Mood,
 } from "@/lib/mindvault";
+
 import { PrivacyBadges } from "@/components/privacy";
 import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,7 +24,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { detectEmotions, insight, reflect } from "@/lib/on-device-ai";
-
+import { generateAIReflection } from "@/lib/api";
 export const Route = createFileRoute("/app/")({
   head: () => ({
     meta: [
@@ -49,19 +50,61 @@ function Dashboard() {
   );
   const series = weeklyMoodSeries(entries);
 
-  const logMood = (mood: Mood) => {
-    const body = `Quick mood check-in: feeling ${moodMeta(mood).label.toLowerCase()}.`;
-    add({
-      title: `Mood check-in · ${moodMeta(mood).label}`,
+  const logMood = async (mood: Mood) => {
+  const body =
+    `Quick mood check-in: feeling ${
+      moodMeta(mood).label.toLowerCase()
+    }.`;
+
+  let reflectionText = reflect(body, mood);
+
+  try {
+    const aiResponse =
+      await generateAIReflection(
+        body,
+        mood,
+      );
+
+    reflectionText =
+      aiResponse.reflection;
+  } catch (error) {
+    console.error(
+      "Gemma reflection failed:",
+      error,
+    );
+  }
+
+  try {
+    await add({
+      title:
+        `Mood check-in · ${
+          moodMeta(mood).label
+        }`,
       body,
       mood,
       source: "text",
-      emotions: detectEmotions(body),
+      emotions:
+        detectEmotions(body),
       summary: body,
-      reflection: reflect(body, mood),
+      reflection:
+        reflectionText,
     });
-    toast.success("Mood saved locally", { description: insight(body, mood) });
-  };
+
+    toast.success(
+      "Mood saved with Gemma reflection",
+      {
+        description:
+          reflectionText,
+      },
+    );
+  } catch (error) {
+    toast.error(
+      error instanceof Error
+        ? error.message
+        : "Unable to save mood.",
+    );
+  }
+};
 
   if (!hydrated) {
     return (
