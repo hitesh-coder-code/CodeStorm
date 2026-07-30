@@ -1,0 +1,37 @@
+# CodeStorm Speech Module — dependencies
+#
+# Core (required)
+# ---------------------------------------------------------------------
+numpy>=1.24,<2.0                 # audio array manipulation, RMS calculation
+sounddevice>=0.4.6               # microphone recording (requires system PortAudio)
+soundfile>=0.12.1                # WAV reading for TTS playback
+faster-whisper>=1.0.0            # offline speech-to-text (CTranslate2-based Whisper)
+
+# Text-to-speech (preferred + fallback)
+# ---------------------------------------------------------------------
+TTS>=0.22.0                      # Coqui TTS — fully offline voice synthesis
+gTTS>=2.5.0                      # fallback TTS — requires an internet connection
+playsound>=1.3.0                 # cross-platform playback for gTTS's mp3 output
+
+# Voice activity detection (optional but recommended)
+# ---------------------------------------------------------------------
+webrtcvad>=2.0.10                # robust VAD; falls back to RMS-based detection if absent
+
+# Testing
+# ---------------------------------------------------------------------
+pytest>=7.4.0
+
+# ---------------------------------------------------------------------
+# System-level prerequisites (install via your OS package manager, not pip):
+#   - PortAudio   (required by `sounddevice`)
+#       Debian/Ubuntu: sudo apt-get install portaudio19-dev
+#       macOS:         brew install portaudio
+#       Windows:       bundled with the sounddevice wheel, usually no action needed
+#   - ffmpeg      (recommended by Coqui TTS / gTTS for broader format support)
+#       Debian/Ubuntu: sudo apt-get install ffmpeg
+#       macOS:         brew install ffmpeg
+#
+# Every heavy dependency above (faster-whisper, TTS, gTTS, webrtcvad,
+# sounddevice) is optional at import time: the module degrades
+# gracefully and raises a clear, catchable exception if a given
+# capability is unavailable, rather than crashing on import.
