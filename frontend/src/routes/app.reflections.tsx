@@ -8,6 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import logo from "@/assets/mindvault-logo.png";
 import { toast } from "sonner";
 import { generateAIReflection } from "@/lib/api";
+import {
+  reflect,
+} from "@/lib/on-device-ai";
 export const Route = createFileRoute("/app/reflections")({
   head: () => ({
     meta: [
